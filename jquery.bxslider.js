@@ -21,8 +21,10 @@
 		easing: null,
 		slideMargin: 0,
 		startSlide: 0,
-		randomStart: false,
 		captions: false,
+		  // @arkadylukashov mod
+			captionsSelector: false,
+			captionsAttr: 'alt',
 		ticker: false,
 		tickerHover: false,
 		adaptiveHeight: false,
@@ -101,10 +103,21 @@
 		var init = function(){
 			// merge user-supplied options with the defaults
 			slider.settings = $.extend({}, defaults, options);
+			// @arkadylukashov mod
+			if(slider.settings.captionsSelector) {
+				slider.modCaptions = { 
+					selectors: slider.settings.captionsSelector,
+					attrs: slider.settings.captionsAttr,
+					storage: [],
+					hack: function(idx) {
+						$.each(slider.modCaptions.storage[idx], function(i,v) {
+							$(i).html(v)
+						})
+					}
+				};
+			}
 			// store the original children
 			slider.children = el.children(slider.settings.slideSelector);
-			// if random start, set the startSlide setting to random number
-			if(slider.settings.randomStart) slider.settings.startSlide = Math.floor(Math.random() * slider.children.length);
 			// store active slide information
 			slider.active = { index: slider.settings.startSlide }
 			// store if the slider is in carousel mode (displaying / moving multiple slides)
@@ -199,6 +212,8 @@
 			slider.controls.el = $('<div class="bx-controls" />');
 			// if captions are requested, add them
 			if(slider.settings.captions) appendCaptions();
+			// @arkadylukashov mod captions
+			if(slider.settings.captionsSelector) { slider.modCaptions.hack(0); }
 			// if infinite loop, prepare additional slides
 			if(slider.settings.infiniteLoop && slider.settings.mode != 'fade' && !slider.settings.ticker){
 				var slice = slider.settings.mode == 'vertical' ? slider.settings.minSlides : slider.settings.maxSlides;
@@ -295,7 +310,7 @@
 			// if not "vertical" mode, calculate the max height of the children
 			}else{
 				height = Math.max.apply(Math, children.map(function(){
-					return $(this).outerHeight(false);
+					return $(this).outerHeight();
 				}).get());
 			}
 			return height;
@@ -598,10 +613,22 @@
 		var appendCaptions = function(){
 			// cycle through each child
 			slider.children.each(function(index){
-				// get the image title attribute
-				var title = $(this).find('img:first').attr('title');
-				// append the caption
-				if (title != undefined) $(this).append('<div class="bx-caption"><span>' + title + '</span></div>');
+				// @arkadylukashov captions mod
+				if(slider.settings.captionsSelector) {
+					var cSelectors = slider.modCaptions.selectors.split(','),
+						cAttrs = slider.modCaptions.attrs.split(','),
+						tmp = {}, proxy = $(this);
+					$.each(cSelectors, function(i, value) {
+						tmp[$.trim(value)] = proxy.find('img:first').attr( $.trim(cAttrs[i]) );
+					});
+					slider.modCaptions.storage[index] = tmp;
+				} else {
+					// get the image title attribute
+					var title = $(this).find('img:first').attr('title');
+					// append the caption
+					if (title != undefined) $(this).append('<div class="bx-caption"><span>' + title + '</span></div>');
+				}
+
 			});
 		}
 		
@@ -991,6 +1018,8 @@
 			}
 			// onSlideBefore, onSlideNext, onSlidePrev callbacks
 			slider.settings.onSlideBefore(slider.children.eq(slider.active.index), slider.oldIndex, slider.active.index);
+			// @arkadylukashov mod captions hack
+			if(slider.settings.captionsSelector) { slider.modCaptions.hack(slider.active.index); }
 			if(direction == 'next'){
 				slider.settings.onSlideNext(slider.children.eq(slider.active.index), slider.oldIndex, slider.active.index);
 			}else if(direction == 'prev'){
